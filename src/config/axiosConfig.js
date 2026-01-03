@@ -1,6 +1,6 @@
 
 import axios from "axios";
-const baseURL =  "http://localhost:9000/";
+const baseURL =  "https://tarakingbackend.vercel.app/";
 
 const axiosConfig = axios.create({
   baseURL,
