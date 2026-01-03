@@ -1,6 +1,6 @@
 
 import axios from "axios";
-export const baseURL =  "https://tarakingbackend.vercel.app/";
+export const baseURL =  "https://tarakingbackend-1.onrender.com";
 
 const axiosConfig = axios.create({
   baseURL,
