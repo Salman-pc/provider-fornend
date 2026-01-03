@@ -42,37 +42,42 @@ export const ProviderView = ({ tripId, provider }) => {
   const [distance, setDistance] = useState(0);
 
   useEffect(() => {
-    // Set provier location
-
-    
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setCurrentLocation({ lat: latitude, lng: longitude });
-          getAddress(latitude, longitude);
-        },
-        (error) => {
-          console.error('Location error:', error);
-          setLocationAddress('Location access denied');
-        },
-        { enableHighAccuracy: true, maximumAge: 500, timeout: 2000 }
-      );
+    if (!navigator.geolocation) {
+      setLocationAddress("Geolocation not supported");
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setCurrentLocation({ lat: latitude, lng: longitude });
+        getAddress(latitude, longitude);
+      },
+      (error) => {
+        console.error("Location error:", error);
+        setLocationAddress("Unable to get location");
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 0
+      }
+    );
   }, []);
 
 
+
   useEffect(() => {
-    
+
     getCustomerlocation()
   }, [])
-  
+
   const getCustomerlocation = async () => {
     try {
       const result = await getCustomerAddressApi('69574a2f1d963b8919a610af')
       console.log(result, "result");
 
-      setCustomerLocation({ lat:result?.UserLocation?.location[0], lng:result?.UserLocation?.location[1] });
+      setCustomerLocation({ lat: result?.UserLocation?.location[0], lng: result?.UserLocation?.location[1] });
 
     } catch (error) {
       console.log(error);
@@ -125,79 +130,60 @@ export const ProviderView = ({ tripId, provider }) => {
   };
 
   const startTracking = () => {
-
-    getCustomerlocation()
-
-    if (!socket) {
-      console.error('❌ PROVIDER: Socket not connected');
-      alert('Socket not connected');
+    if (!socket || !currentLocation || !customerLocation) {
+      alert("Location not ready");
       return;
     }
 
-    if (!navigator.geolocation) {
-      console.error('❌ PROVIDER: Geolocation not supported');
-      alert('Geolocation not supported');
-      return;
-    }
-
-    console.log('🚗 PROVIDER: Starting tracking for trip:', tripId);
-    socket.emit('provider:start', { tripId, provider, lat: currentLocation.lat, lng: currentLocation.lng });
-    console.log(currentLocation, "this is cuso");
-
-    // Get initial road route
-    if (currentLocation && customerLocation) {
-      getRoadRoute(currentLocation.lat, currentLocation.lng, customerLocation.lat, customerLocation.lng);
-    }
+    socket.emit("provider:start", {
+      tripId,
+      provider,
+      lat: currentLocation.lat,
+      lng: currentLocation.lng
+    });
 
     const id = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        console.log('📍 PROVIDER: Sending location - Lat:', latitude, 'Lng:', longitude);
+
         setCurrentLocation({ lat: latitude, lng: longitude });
-        getRoadRoute(latitude, longitude, customerLocation.lat, customerLocation.lng);
         getAddress(latitude, longitude);
-        socket.emit('provider:location', { tripId, lat: latitude, lng: longitude });
-        console.log('📡 PROVIDER: Location sent to customer');
-        console.log('📍 PROVIDER Current Location:', { lat: latitude, lng: longitude });
+
+        if (customerLocation) {
+          getRoadRoute(latitude, longitude, customerLocation.lat, customerLocation.lng);
+        }
+
+        socket.emit("provider:location", {
+          tripId,
+          lat: latitude,
+          lng: longitude
+        });
       },
       (error) => {
-        console.error('❌ PROVIDER: Geolocation error:', error.message);
-        alert('Location error: ' + error.message);
+        console.error("Tracking error:", error.message);
       },
-      { enableHighAccuracy: true, maximumAge: 500, timeout: 2000 }
+      {
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 5000
+      }
     );
 
     setWatchId(id);
     setIsTracking(true);
-    console.log('✅ PROVIDER: Tracking started with watchId:', id);
   };
+
 
   const stopTracking = () => {
     if (watchId) {
-      if (demoMode) {
-        clearInterval(watchId);
-      } else {
-        navigator.geolocation.clearWatch(watchId);
-      }
+      navigator.geolocation.clearWatch(watchId);
     }
-    socket.emit('trip:end', tripId);
+
+    socket?.emit("trip:end", tripId);
     setIsTracking(false);
-    setDemoMode(false);
-    console.log('🛑 PROVIDER: Tracking stopped');
   };
 
-  // useEffect(() => {
-  //   if (!socket) return;
 
-  //   socket.on('customer:location', (data) => {
-  //     console.log('📍 PROVIDER: Customer location received - Lat:', data.lat, 'Lng:', data.lng);
-  //     setCustomerLocation({ lat: data.lat, lng: data.lng });
-  //   });
-
-  //   return () => {
-  //     socket.off('customer:location');
-  //   };
-  // }, [socket]);
 
   useEffect(() => {
     if (isTracking && !demoMode) {
@@ -259,7 +245,6 @@ export const ProviderView = ({ tripId, provider }) => {
               center={[currentLocation.lat, currentLocation.lng]}
               zoom={15}
               style={{ height: '100%', width: '100%' }}
-              key={`${currentLocation.lat}-${currentLocation.lng}`}
             >
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
