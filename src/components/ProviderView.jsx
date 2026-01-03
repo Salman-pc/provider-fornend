@@ -44,6 +44,7 @@ export const ProviderView = ({ tripId, provider }) => {
   useEffect(() => {
     // Set provier location
 
+    
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
