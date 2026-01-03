@@ -18,3 +18,12 @@ export const loginUserApi = async (userData)=>{
         throw error;
     }
 }
+
+export const getCustomerAddressApi = async (userId)=>{
+    try {
+        const response = await axiosConfig.get(`/api/user/address/list?userId=${userId}`)
+        return response.data
+    } catch (error) {
+        throw error;
+    }
+}

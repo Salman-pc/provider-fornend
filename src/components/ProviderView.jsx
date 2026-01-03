@@ -3,6 +3,7 @@ import { useSocket } from '../hooks/useSocket';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { getCustomerAddressApi } from '../api/api';
 
 // Fix for default markers
 delete L.Icon.Default.prototype._getIconUrl;
@@ -34,16 +35,15 @@ export const ProviderView = ({ tripId, provider }) => {
   const [watchId, setWatchId] = useState(null);
   const [demoMode, setDemoMode] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
-  const [customerLocation, setCustomerLocation] = useState(null);
+  const [customerLocation, setCustomerLocation] = useState();
   const [locationAddress, setLocationAddress] = useState('Getting location...');
   const [route, setRoute] = useState([]);
   const [roadRoute, setRoadRoute] = useState([]);
   const [distance, setDistance] = useState(0);
 
   useEffect(() => {
-    // Set fixed customer location
-    setCustomerLocation({ lat: 11.838993, lng: 75.568532 });
-    
+    // Set provier location
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -59,6 +59,25 @@ export const ProviderView = ({ tripId, provider }) => {
       );
     }
   }, []);
+
+
+  useEffect(() => {
+    
+    getCustomerlocation()
+  }, [])
+  
+  const getCustomerlocation = async () => {
+    try {
+      const result = await getCustomerAddressApi('69574a2f1d963b8919a610af')
+      console.log(result, "result");
+
+      setCustomerLocation({ lat: result?.UserLocation?.location[0], lng: result?.UserLocation?.location[1] });
+
+    } catch (error) {
+      console.log(error);
+
+    }
+  }
 
   const getAddress = async (lat, lng) => {
     try {
@@ -76,10 +95,10 @@ export const ProviderView = ({ tripId, provider }) => {
     const R = 6371; // Earth's radius in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLng/2) * Math.sin(dLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
 
@@ -104,65 +123,16 @@ export const ProviderView = ({ tripId, provider }) => {
     }
   };
 
-  const startDemoTracking = () => {
-    if (!socket) {
-      console.error('PROVIDER: Socket not connected');
-      alert('Socket not connected');
-      return;
-    }
-
-    if (!currentLocation) {
-      alert('Waiting for provider location...');
-      return;
-    }
-
-    console.log('🎬 PROVIDER: Starting DEMO tracking for trip:', tripId);
-    socket.emit('provider:start', { tripId, provider, lat: currentLocation.lat, lng: currentLocation.lng });
-    
-    // Get road route
-    getRoadRoute(currentLocation.lat, currentLocation.lng, customerLocation.lat, customerLocation.lng);
-
-    // Simulate movement from current provider location to customer location
-    let step = 0;
-    const startLat = currentLocation.lat;
-    const startLng = currentLocation.lng;
-    const endLat = customerLocation.lat;
-    const endLng = customerLocation.lng;
-    const totalSteps = 20;
-
-    const interval = setInterval(() => {
-      if (step >= totalSteps) {
-        clearInterval(interval);
-        return;
-      }
-
-      const progress = step / totalSteps;
-      const lat = startLat + (endLat - startLat) * progress;
-      const lng = startLng + (endLng - startLng) * progress;
-
-      console.log(`📍 PROVIDER: DEMO location ${step + 1}/${totalSteps} - Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`);
-      setCurrentLocation({ lat, lng });
-      setRoute(prev => [...prev, [lat, lng]]);
-      getRoadRoute(lat, lng, customerLocation.lat, customerLocation.lng);
-      getAddress(lat, lng);
-      socket.emit('provider:location', { tripId, lat, lng });
-      console.log('📡 PROVIDER: Demo location sent to customer');
-      console.log('📍 PROVIDER Current Location:', { lat, lng });
-      step++;
-    }, 2000);
-
-    setWatchId(interval);
-    setIsTracking(true);
-    setDemoMode(true);
-    console.log('✅ PROVIDER: DEMO tracking started');
-  };
-
   const startTracking = () => {
+
+    getCustomerlocation()
+
     if (!socket) {
       console.error('❌ PROVIDER: Socket not connected');
       alert('Socket not connected');
       return;
     }
+
     if (!navigator.geolocation) {
       console.error('❌ PROVIDER: Geolocation not supported');
       alert('Geolocation not supported');
@@ -171,7 +141,8 @@ export const ProviderView = ({ tripId, provider }) => {
 
     console.log('🚗 PROVIDER: Starting tracking for trip:', tripId);
     socket.emit('provider:start', { tripId, provider, lat: currentLocation.lat, lng: currentLocation.lng });
-    
+    console.log(currentLocation, "this is cuso");
+
     // Get initial road route
     if (currentLocation && customerLocation) {
       getRoadRoute(currentLocation.lat, currentLocation.lng, customerLocation.lat, customerLocation.lng);
@@ -214,18 +185,18 @@ export const ProviderView = ({ tripId, provider }) => {
     console.log('🛑 PROVIDER: Tracking stopped');
   };
 
-  useEffect(() => {
-    if (!socket) return;
+  // useEffect(() => {
+  //   if (!socket) return;
 
-    socket.on('customer:location', (data) => {
-      console.log('📍 PROVIDER: Customer location received - Lat:', data.lat, 'Lng:', data.lng);
-      setCustomerLocation({ lat: data.lat, lng: data.lng });
-    });
+  //   socket.on('customer:location', (data) => {
+  //     console.log('📍 PROVIDER: Customer location received - Lat:', data.lat, 'Lng:', data.lng);
+  //     setCustomerLocation({ lat: data.lat, lng: data.lng });
+  //   });
 
-    return () => {
-      socket.off('customer:location');
-    };
-  }, [socket]);
+  //   return () => {
+  //     socket.off('customer:location');
+  //   };
+  // }, [socket]);
 
   useEffect(() => {
     if (isTracking && !demoMode) {
@@ -266,62 +237,62 @@ export const ProviderView = ({ tripId, provider }) => {
   }, [watchId, demoMode, isTracking, socket, tripId]);
 
   return (
-    <div style={{height: '100vh', width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column'}}>
+    <div style={{ height: '100vh', width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{flexShrink: 0, backgroundColor: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-        <div style={{display: 'flex', alignItems: 'center', padding: '12px 16px'}}>
-          <button style={{marginRight: '12px'}} onClick={() => window.history.back()}>
-            <svg style={{width: '24px', height: '24px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div style={{ flexShrink: 0, backgroundColor: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px' }}>
+          <button style={{ marginRight: '12px' }} onClick={() => window.history.back()}>
+            <svg style={{ width: '24px', height: '24px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 style={{fontSize: '18px', fontWeight: '600', flex: 1, textAlign: 'center', marginRight: '36px'}}>Provider Dashboard</h1>
+          <h1 style={{ fontSize: '18px', fontWeight: '600', flex: 1, textAlign: 'center', marginRight: '36px' }}>Provider Dashboard</h1>
         </div>
       </div>
 
       {/* Main Content */}
-      <div style={{flex: 1, position: 'relative'}}>
+      <div style={{ flex: 1, position: 'relative' }}>
         {currentLocation ? (
-          <div style={{height: '100%', width: '100%'}}>
-            <MapContainer 
-              center={[currentLocation.lat, currentLocation.lng]} 
-              zoom={15} 
+          <div style={{ height: '100%', width: '100%' }}>
+            <MapContainer
+              center={[currentLocation.lat, currentLocation.lng]}
+              zoom={15}
               style={{ height: '100%', width: '100%' }}
               key={`${currentLocation.lat}-${currentLocation.lng}`}
             >
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              
 
-              
+
+
               {/* Road route to customer */}
               {roadRoute.length > 0 && (
-                <Polyline 
-                  positions={roadRoute} 
-                  color="#2563eb" 
-                  weight={4} 
+                <Polyline
+                  positions={roadRoute}
+                  color="#2563eb"
+                  weight={4}
                   opacity={0.8}
                 />
               )}
-              
+
               <Marker position={[currentLocation.lat, currentLocation.lng]}>
                 <Popup>
-                  <div style={{textAlign: 'center'}}>
-                    <strong>📍 Provider Location</strong><br/>
-                    Lat: {currentLocation.lat.toFixed(6)}<br/>
-                    Lng: {currentLocation.lng.toFixed(6)}<br/>
+                  <div style={{ textAlign: 'center' }}>
+                    <strong>📍 Provider Location</strong><br />
+                    Lat: {currentLocation.lat}<br />
+                    Lng: {currentLocation.lng}<br />
                     <small>{locationAddress}</small>
-                    {isTracking && <><br/><span style={{color: '#22c55e', fontSize: '12px'}}>• Live Tracking</span></>}
+                    {isTracking && <><br /><span style={{ color: '#22c55e', fontSize: '12px' }}>• Live Tracking</span></>}
                   </div>
                 </Popup>
               </Marker>
               {customerLocation && (
                 <Marker position={[customerLocation.lat, customerLocation.lng]} icon={customerIcon}>
                   <Popup>
-                    <div style={{textAlign: 'center'}}>
-                      <strong>👤 Customer Location</strong><br/>
-                      Lat: {customerLocation.lat.toFixed(6)}<br/>
-                      Lng: {customerLocation.lng.toFixed(6)}<br/>
-                      <span style={{color: '#7c3aed', fontSize: '12px'}}>• Destination</span>
+                    <div style={{ textAlign: 'center' }}>
+                      <strong>👤 Customer Location</strong><br />
+                      Lat: {customerLocation.lat}<br />
+                      Lng: {customerLocation.lng}<br />
+                      <span style={{ color: '#7c3aed', fontSize: '12px' }}>• Destination</span>
                     </div>
                   </Popup>
                 </Marker>
@@ -329,56 +300,56 @@ export const ProviderView = ({ tripId, provider }) => {
             </MapContainer>
           </div>
         ) : (
-          <div style={{height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6'}}>
-            <div style={{textAlign: 'center'}}>
-              <div style={{fontSize: '48px', marginBottom: '16px'}}>📍</div>
-              <p style={{color: '#6b7280'}}>Getting your location...</p>
+          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📍</div>
+              <p style={{ color: '#6b7280' }}>Getting your location...</p>
             </div>
           </div>
         )}
       </div>
 
       {/* Bottom Card */}
-      <div style={{flexShrink: 0}}>
+      <div style={{ flexShrink: 0 }}>
         {/* Green Provider Card */}
-        <div style={{backgroundColor: '#22c55e', color: 'white', padding: '16px 20px', boxShadow: '0 10px 15px rgba(0,0,0,0.1)'}}>
-          <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px'}}>
-            <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-              <svg style={{width: '28px', height: '28px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div style={{ backgroundColor: '#22c55e', color: 'white', padding: '16px 20px', boxShadow: '0 10px 15px rgba(0,0,0,0.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <svg style={{ width: '28px', height: '28px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
               </svg>
               <div>
-                <h2 style={{fontSize: '18px', fontWeight: 'bold'}}>{provider.name}</h2>
-                <p style={{fontSize: '12px', opacity: 0.9}}>Service Provider</p>
+                <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>{provider.name}</h2>
+                <p style={{ fontSize: '12px', opacity: 0.9 }}>Service Provider</p>
               </div>
             </div>
           </div>
-          
-          <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px'}}>
-            <svg style={{width: '16px', height: '16px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+            <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <span style={{opacity: 0.9}}>Trip ID: {tripId}</span>
+            <span style={{ opacity: 0.9 }}>Trip ID: {tripId}</span>
           </div>
           {distance > 0 && (
-            <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', marginTop: '8px'}}>
-              <svg style={{width: '16px', height: '16px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', marginTop: '8px' }}>
+              <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
-              <span style={{opacity: 0.9}}>Distance to customer: {distance.toFixed(1)} km</span>
+              <span style={{ opacity: 0.9 }}>Distance to customer: {distance.toFixed(1)} km</span>
             </div>
           )}
         </div>
 
         {/* Notes Card */}
-        <div style={{backgroundColor: '#f8fafc', padding: '12px 20px', borderTop: '1px solid #e2e8f0'}}>
-          <div style={{fontSize: '12px', color: '#64748b'}}>
-            <div style={{marginBottom: '8px', fontWeight: '600', color: '#374151'}}>📋 Map Legend:</div>
-            <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+        <div style={{ backgroundColor: '#f8fafc', padding: '12px 20px', borderTop: '1px solid #e2e8f0' }}>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>
+            <div style={{ marginBottom: '8px', fontWeight: '600', color: '#374151' }}>📋 Map Legend:</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
 
-              <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                <div style={{width: '16px', height: '3px', backgroundColor: '#2563eb'}}></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '16px', height: '3px', backgroundColor: '#2563eb' }}></div>
                 <span>Blue: Road route to customer</span>
               </div>
             </div>
@@ -386,19 +357,14 @@ export const ProviderView = ({ tripId, provider }) => {
         </div>
 
         {/* White Controls Card */}
-        <div style={{backgroundColor: 'white', padding: '16px 20px'}}>
-          <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
+        <div style={{ backgroundColor: 'white', padding: '16px 20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {!isTracking ? (
               <>
-                <button
-                  onClick={startDemoTracking}
-                  style={{width: '100%', backgroundColor: '#2563eb', color: 'white', fontWeight: '600', padding: '12px', borderRadius: '12px', border: 'none', cursor: 'pointer'}}
-                >
-                  🎬 Start Demo Tracking
-                </button>
+
                 <button
                   onClick={startTracking}
-                  style={{width: '100%', backgroundColor: '#16a34a', color: 'white', fontWeight: '600', padding: '12px', borderRadius: '12px', border: 'none', cursor: 'pointer'}}
+                  style={{ width: '100%', backgroundColor: '#16a34a', color: 'white', fontWeight: '600', padding: '12px', borderRadius: '12px', border: 'none', cursor: 'pointer' }}
                 >
                   📍 Start Real GPS Tracking
                 </button>
@@ -406,7 +372,7 @@ export const ProviderView = ({ tripId, provider }) => {
             ) : (
               <button
                 onClick={stopTracking}
-                style={{width: '100%', backgroundColor: '#dc2626', color: 'white', fontWeight: '600', padding: '12px', borderRadius: '12px', border: 'none', cursor: 'pointer'}}
+                style={{ width: '100%', backgroundColor: '#dc2626', color: 'white', fontWeight: '600', padding: '12px', borderRadius: '12px', border: 'none', cursor: 'pointer' }}
               >
                 🛑 Stop Tracking
               </button>
