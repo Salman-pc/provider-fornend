@@ -21,7 +21,7 @@ export const loginUserApi = async (userData)=>{
 
 export const getCustomerAddressApi = async (userId)=>{
     try {
-        const response = await axiosConfig.get(`/api/user/address/list?userId=${userId}`)
+        const response = await axiosConfig.get(`/api/user/address/customer-location?userId=${userId}`)
         return response.data
     } catch (error) {
         throw error;

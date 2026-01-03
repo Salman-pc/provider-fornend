@@ -72,7 +72,7 @@ export const ProviderView = ({ tripId, provider }) => {
       const result = await getCustomerAddressApi('69574a2f1d963b8919a610af')
       console.log(result, "result");
 
-      setCustomerLocation({ lat: result?.UserLocation?.location[0], lng: result?.UserLocation?.location[1] });
+      setCustomerLocation({ lat:result?.UserLocation?.location[0], lng:result?.UserLocation?.location[1] });
 
     } catch (error) {
       console.log(error);
