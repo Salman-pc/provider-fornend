@@ -88,7 +88,21 @@ const AuthForm = ({ mode = "login" }) => {
             >
                 {isSignup ? "Sign Up" : "Login"}
             </button>
+
+            <p>{mode == "login" ? <div
+                onClick={() => navigate('/signup')}
+
+            >
+                sign up
+            </div> :
+                <div
+                    onClick={() => navigate('/login')}
+                >
+                    sign in
+                </div>
+            }</p>
         </form>
+
     );
 };
 

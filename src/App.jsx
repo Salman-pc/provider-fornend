@@ -21,6 +21,9 @@ function App() {
       <Routes>
         {/* <Route path="/" element={<AuthForm mode="login" />} /> */}
         <Route path="/signup" element={<AuthForm mode="signup" />} />
+                <Route path="/signup" element={<AuthForm mode="signup" />} />
+                <Route path="/login" element={<AuthForm mode="login" />} />
+
         <Route
           path="/"
           element={accessToken ? <ProviderView tripId={tripId} provider={provider} /> : <AuthForm mode="login" />}
