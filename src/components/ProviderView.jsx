@@ -4,6 +4,8 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { getCustomerAddressApi } from '../api/api';
+import { useNavigate } from "react-router-dom";
+
 
 // Fix for default markers
 delete L.Icon.Default.prototype._getIconUrl;
@@ -31,6 +33,7 @@ const customerIcon = L.divIcon({
 
 export const ProviderView = ({ tripId, provider }) => {
   const socket = useSocket();
+  const navigate = useNavigate()
   const [isTracking, setIsTracking] = useState(false);
   const [watchId, setWatchId] = useState(null);
   const [demoMode, setDemoMode] = useState(false);
@@ -64,7 +67,6 @@ export const ProviderView = ({ tripId, provider }) => {
       }
     );
   }, []);
-
 
 
   useEffect(() => {
@@ -130,6 +132,8 @@ export const ProviderView = ({ tripId, provider }) => {
   };
 
   const startTracking = () => {
+    console.log(socket, currentLocation, customerLocation, "hello welcccc");
+
     if (!socket || !currentLocation || !customerLocation) {
       alert("Location not ready");
       return;
@@ -183,7 +187,10 @@ export const ProviderView = ({ tripId, provider }) => {
     setIsTracking(false);
   };
 
-
+  const handilelogout = () => {
+    localStorage.clear()
+    navigate()
+  }
 
   useEffect(() => {
     if (isTracking && !demoMode) {
@@ -226,7 +233,7 @@ export const ProviderView = ({ tripId, provider }) => {
   return (
     <div style={{ height: '100vh', width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ flexShrink: 0, backgroundColor: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+      <div style={{ flexShrink: 0, alignItems: 'center', display: 'flex', justifyContent: 'space-between', backgroundColor: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px' }}>
           <button style={{ marginRight: '12px' }} onClick={() => window.history.back()}>
             <svg style={{ width: '24px', height: '24px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -234,6 +241,9 @@ export const ProviderView = ({ tripId, provider }) => {
             </svg>
           </button>
           <h1 style={{ fontSize: '18px', fontWeight: '600', flex: 1, textAlign: 'center', marginRight: '36px' }}>Provider Dashboard</h1>
+        </div>
+        <div>
+          <button className='border rounded-sm py-2 px-3 mx-4 ' onClick={handilelogout}>Logout</button>
         </div>
       </div>
 
@@ -247,8 +257,6 @@ export const ProviderView = ({ tripId, provider }) => {
               style={{ height: '100%', width: '100%' }}
             >
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
-
 
               {/* Road route to customer */}
               {roadRoute.length > 0 && (
